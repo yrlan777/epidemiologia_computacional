@@ -1,0 +1,162 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from matplotlib.colors import ListedColormap
+import random
+
+# Estados
+
+S = 0
+E = 1
+I = 2
+R = 3
+D = 4
+
+tamanho = 70
+
+beta = 0.30           # transmissão
+tempo_incubacao = 4
+tempo_infeccao = 8
+mortalidade = 0.08
+
+dias = 120
+
+matriz = np.zeros((tamanho, tamanho), dtype=int)
+
+contador = np.zeros((tamanho, tamanho), dtype=int)
+
+# primeiros infectados
+
+for _ in range(8):
+    x = random.randint(0, tamanho - 1)
+    y = random.randint(0, tamanho - 1)
+
+    matriz[x][y] = I
+
+
+historicoS = []
+historicoE = []
+historicoI = []
+historicoR = []
+historicoD = []
+
+
+cores = ListedColormap([
+    "#5cb85c",   # S
+    "#f0ad4e",   # E
+    "#d9534f",   # I
+    "#428bca",   # R
+    "#222222"    # D
+])
+
+fig, ax = plt.subplots(figsize=(7,7))
+
+imagem = ax.imshow(matriz,
+                   cmap=cores,
+                   vmin=0,
+                   vmax=4)
+
+ax.set_title("Modelo SEIRD - Automato Celular")
+
+def atualizar(frame):
+
+    global matriz
+    global contador
+
+    nova = matriz.copy()
+
+    for i in range(tamanho):
+
+        for j in range(tamanho):
+
+            estado = matriz[i][j]
+
+            if estado == S:
+
+                infectado = False
+
+                for dx in [-1,0,1]:
+                    for dy in [-1,0,1]:
+
+                        if dx == 0 and dy == 0:
+                            continue
+
+                        x = i + dx
+                        y = j + dy
+
+                        if 0 <= x < tamanho and 0 <= y < tamanho:
+
+                            if matriz[x][y] == I:
+                                infectado = True
+
+                if infectado:
+
+                    if random.random() < beta:
+                        nova[i][j] = E
+                        contador[i][j] = 0
+
+
+            elif estado == E:
+
+                contador[i][j] += 1
+
+                if contador[i][j] >= tempo_incubacao:
+
+                    nova[i][j] = I
+                    contador[i][j] = 0
+
+
+            elif estado == I:
+
+                contador[i][j] += 1
+
+                if contador[i][j] >= tempo_infeccao:
+
+                    if random.random() < mortalidade:
+                        nova[i][j] = D
+                    else:
+                        nova[i][j] = R
+
+                    contador[i][j] = 0
+
+
+    matriz = nova
+
+    historicoS.append(np.count_nonzero(matriz == S))
+    historicoE.append(np.count_nonzero(matriz == E))
+    historicoI.append(np.count_nonzero(matriz == I))
+    historicoR.append(np.count_nonzero(matriz == R))
+    historicoD.append(np.count_nonzero(matriz == D))
+
+    imagem.set_array(matriz)
+
+    return imagem,
+
+
+ani = FuncAnimation(
+    fig,
+    atualizar,
+    frames=dias,
+    interval=180,
+    repeat=False
+)
+
+plt.show()
+
+plt.figure(figsize=(10,5))
+
+plt.plot(historicoS,label="Susceptible")
+plt.plot(historicoE,label="Exposed")
+plt.plot(historicoI,label="Infected")
+plt.plot(historicoR,label="Recovered")
+plt.plot(historicoD,label="Dead")
+
+plt.xlabel("Time")
+plt.ylabel("Individuals")
+plt.title("SEIRD Compartments")
+
+plt.legend()
+
+plt.grid(True)
+
+plt.show()
